@@ -7,9 +7,9 @@ CloudFormation Templates to create VPC with two public and two private subnets a
 ## VPC Template
 * CloudFormation Trmplate **0-vpc_cfn.yml**.
 * You have to run this template first to impelemt vpc and all it's components.
-* 
+  
 ### Parameters
-   Name | Description | Type | Default | 
+   | Name | Description | Type | Default | 
    |------|-------------|:----:|:-----:|
    | VpcCIDR | CIDR notation for this VPC | String | 10.40.0.0/16 |
    | PublicSubnet1CIDR | CIDR notation for the public subnet in the first Availability Zone | String | 10.40.1.0/24 |
@@ -42,14 +42,14 @@ CloudFormation Templates to create VPC with two public and two private subnets a
 
  Name | Description | Type | Default | 
 |------|-------------|:----:|:-----:|
-| BastionInstanceType | WebServer instance type. | string | t2.micro |
-| BastionImageId | Latest Amazon Linux AMI SSM . | string | Latest Amazon Linux AMI |
+| BastionInstanceType | WebServer instance type | string | t2.micro |
+| BastionImageId | Latest Amazon Linux AMI SSM | AWS::SSM::Parameter::Value<String> | Latest Amazon Linux AMI |
 | SSHLocation | The IP address range that can be used to SSH Bastion instance |
-| KeyName | Name of EC2 KeyPair to enable SSH access to the instances | string | n/a |
+| KeyName | Name of EC2 KeyPair to enable SSH access to the instances | AWS::EC2::KeyPair::KeyName | n/a |
 | S3BucketName | Name of S3 bucket to download HTML file from | string | n/a |
 | IndexPrefix | Prefix of HTML file uploaded to S3 | string | n/a |
-| InstanceType | WebServer instance type. | string | t2.micro |
-| WebImageId | Latest Amazon Linux AMI SSM . | string | Latest Amazon Linux AMI |
+| InstanceType | WebServer instance type | string | t2.micro |
+| WebImageId | Latest Amazon Linux AMI SSM | AWS::SSM::Parameter::Value<String>  | Latest Amazon Linux AMI |
 
 ### OUTPUTS
 | Name | Description |
