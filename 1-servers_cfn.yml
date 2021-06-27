@@ -166,7 +166,7 @@ Resources:
         ImageId: !Sub ${WebImageId}
         KeyName: !Ref KeyName
         InstanceType: !Ref InstanceType
-        SubnetId: !ImportValue PrivateSubnet2
+        SubnetId: !ImportValue PrivateSubnet1
         S3BucketName: !Ref S3BucketName
         IndexPrefix: !Ref IndexPrefix
         InstanceName:  WebServerHostPiv1
