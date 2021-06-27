@@ -141,7 +141,7 @@ Resources:
         IndexPrefix: !Ref IndexPrefix
         InstanceName: WebServerHostPub1
         SecurityGroupIds: !Ref WebServerSecurityGroupPub
-      TimeoutInMinutes: 30
+      TimeoutInMinutes: 10
 
   WebServerHostPub2:
     Type: AWS::CloudFormation::Stack
@@ -156,7 +156,7 @@ Resources:
         IndexPrefix: !Ref IndexPrefix
         InstanceName: WebServerHostPub2
         SecurityGroupIds: !Ref WebServerSecurityGroupPub
-      TimeoutInMinutes: 30
+      TimeoutInMinutes: 10
   
   WebServerHostPriv1:
     Type: AWS::CloudFormation::Stack
@@ -171,7 +171,7 @@ Resources:
         IndexPrefix: !Ref IndexPrefix
         InstanceName:  WebServerHostPiv1
         SecurityGroupIds: !Ref WebServerSecurityGroupPriv
-      TimeoutInMinutes: 30
+      TimeoutInMinutes: 10
 
   WebServerHostPriv2:
     Type: AWS::CloudFormation::Stack
@@ -186,7 +186,7 @@ Resources:
         IndexPrefix: !Ref IndexPrefix
         InstanceName: WebServerHostPiv2
         SecurityGroupIds: !Ref WebServerSecurityGroupPriv
-      TimeoutInMinutes: 30
+      TimeoutInMinutes: 10
     
 Outputs:
    
