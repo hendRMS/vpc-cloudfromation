@@ -1,0 +1,164 @@
+
+Description: AWS CloudFormation Template for Creating Web Servers with HTML file uploaded to S3 bucket 
+             this template is used as nested template insdie the main servers_cfn.yml template
+
+# Parameters =============================================================================================
+
+Parameters:
+  InstanceType:
+    Description: WebServer EC2 instance type (has default, AllowedValues)
+    Type: String
+    Default: t2.micro
+    AllowedValues:
+      - t2.micro
+      - t2.small
+      - t2.medium
+      - t2.large
+      - t2.xlarge
+    ConstraintDescription: must be a valid EC2 instance type.
+
+  InstanceName:
+    Description: Name of EC2 instance 
+    Type: String
+
+  KeyName:
+    Description: Name of an existing EC2 KeyPair to enable SSH access to the instances
+    Type: AWS::EC2::KeyPair::KeyName
+    ConstraintDescription: must be the name of an existing EC2 KeyPair.
+
+  S3BucketName:
+    Description: Name of an existing bucket to download files from
+    Type: String
+    Default: hend-staks
+
+  IndexPrefix:
+    Description: Prefix of HTML file uploaded to S3
+    Type: String
+    ConstraintDescription: must be a name of an existing file in s3 bucket.
+
+  SubnetId:
+    Description: SubnetId of the instance that should be created inside it
+    Type: String
+
+  SecurityGroupIds:
+    Description: Security groups attached to instance 
+    Type: String
+
+ 
+  SecurityGroupIds:
+    Type: String
+
+  ImageId:
+    Type: String
+# Resources ===================================================================================================================
+ 
+Resources:
+  
+  WebServerHost:
+    Type: AWS::EC2::Instance
+    Metadata:
+      Comment: Install apache server
+      AWS::CloudFormation::Init:
+        config:
+          packages:
+            yum:
+              httpd: []
+          files:
+            # Fetch a webpage from a private S3 bucket
+            "/var/www/html/index.html":
+              source: !Sub "https://${S3BucketName}.s3.${AWS::Region}.amazonaws.com/${IndexPrefix}.html"
+              mode: '000644'
+              owner: apache
+              group: apache
+              authentication: S3AccessCreds
+
+            "/etc/cfn/cfn-hup.conf":
+              content: !Sub |
+                [main]
+                stack=${AWS::StackId}
+                region=${AWS::Region}
+              mode: "000400"
+              owner: "root"
+              group: "root"
+            "/etc/cfn/hooks.d/cfn-auto-reloader.conf":
+              content: !Sub |
+                [cfn-auto-reloader-hook]
+                triggers=post.update
+                path=Resources.WebServerHost.Metadata.AWS::CloudFormation::Init
+                action=/opt/aws/bin/cfn-init -v --stack ${AWS::StackName} --resource WebServerHost --region ${AWS::Region}
+              mode: "000400"
+              owner: "root"
+              group: "root"
+
+          services:
+            sysvinit:
+              httpd:
+                enabled: 'true'
+                ensureRunning: 'true'
+              cfn-hup:
+                enable: 'true'
+                ensureRunning: 'true'
+                files:
+                  - "/etc/cfn/cfn-hup.conf"
+                  - "/etc/cfn/hooks.d/cfn-auto-reloader.conf"
+      AWS::CloudFormation::Authentication:
+        # Define S3 access credentials
+        S3AccessCreds:
+          type: S3
+          buckets:
+            - !Sub ${S3BucketName}
+          roleName: !Ref InstanceRole
+    CreationPolicy:
+       ResourceSignal:
+        Timeout: PT15M
+    Properties:
+      ImageId: !Ref ImageId
+      KeyName: !Ref KeyName
+      InstanceType: !Ref InstanceType
+      IamInstanceProfile: !Ref InstanceProfile 
+      SubnetId: !Ref SubnetId
+      SecurityGroupIds: 
+        - !Ref SecurityGroupIds
+      UserData:
+        Fn::Base64:
+          !Sub |
+            #!/bin/bash -xe
+            
+            # Get the latest CloudFormation helper scripts
+            yum install -y aws-cfn-bootstrap
+            
+            # Start cfn-init
+            /opt/aws/bin/cfn-init -v --stack ${AWS::StackName} --resource WebServerHost --region ${AWS::Region}
+            
+            # cfn-init completed so signal success or not
+            /opt/aws/bin/cfn-signal -e $? --stack ${AWS::StackName} --resource WebServerHost --region ${AWS::Region}
+      Tags:
+        - Key: "Name"    
+          Value: !Sub "${InstanceName}"
+
+  InstanceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: 'sts:AssumeRole'
+            Principal:
+              Service: ec2.amazonaws.com
+            Effect: Allow
+            Sid: ''
+      Policies:
+        - PolicyName: AuthenticatedS3GetObjects
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Action:
+                  - 's3:GetObject'
+                Resource: !Sub 'arn:aws:s3:::${S3BucketName}/*'
+                Effect: Allow
+  InstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Path: /
+      Roles:
+        - !Ref InstanceRole
+

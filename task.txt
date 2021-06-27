@@ -1,0 +1,55 @@
+It’s required to write 2 CloudFormation templates that create the following resources:
+
+    VPC CFN
+
+        Resources:
+
+            VPC.
+
+            2 public subnets in 2 different Availability Zones.
+
+            2 private subnets in 2 different Availability Zones.
+
+            Internet Gateway.
+
+            Route Tables and Routes.
+
+            Network Access Control List.
+
+            NAT Gateway.
+
+        Parameters:
+
+            VPC CIDR.
+
+            Subnets CIDRs.
+
+    Servers CFN
+
+        Resources:
+
+            Bastion host.
+
+            Web instance in every subnet.
+
+            Bastion security group (allow ssh from specific IP).
+
+            Public Instance security group (allow 80 from everywhere, 22 from VPC CIDR).
+
+            Private Instance security group (allow 80, 22 from VPC CIDR).
+
+        Parameters:
+
+            Key name.
+
+            Bastion allowed IP.
+
+            Instances types.
+
+You must Output the needed information for VPC CFN like (subnets), and import the output to be used in Servers CFN.
+
+Hints:(no need to edit the config file):
+
+    https://myopswork.com/transparent-ssh-tunnel-through-a-bastion-host-d1d864ddb9ae
+
+    For Putty client (you can use proxy to access this website): https://medium.com/faun/aws-setup-bastion-host-ssh-tunnel-f5ec5cf10524

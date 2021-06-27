@@ -1,0 +1,199 @@
+Description: AWS Cloudfromation template for creating Bastion host, Security Groups and NACLS 
+             it is also the root template for createing apache servers (apache-ec2.yml template)
+
+# Parameters ===================================================================================================
+## Bastion ==============================================================================================
+
+Parameters:
+  BastionInstanceType:
+    Description: Bastion instance type (has default, AllowedValues)
+    Type: String
+    Default: t2.micro
+    AllowedValues:
+      - t2.micro
+      - t2.small
+      - t2.medium
+      - t2.large
+      - t2.xlarge
+    ConstraintDescription: must be a valid EC2 instance type.
+
+  BastionImageId:
+    Type: AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>
+    Default: /aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-gp2
+
+  KeyName:
+    Description: Name of an existing EC2 KeyPair to enable SSH access to the instances
+    Type: AWS::EC2::KeyPair::KeyName
+    ConstraintDescription: must be the name of an existing EC2 KeyPair.
+
+  SSHLocation:
+    Description: The IP address range that can be used to SSH Bastion instance
+    Type: String
+    MinLength: '9'
+    MaxLength: '18'
+    Default: 0.0.0.0/0
+    AllowedPattern: "(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/(\\d{1,2})"
+    ConstraintDescription: must be a valid IP CIDR range of the form x.x.x.x/x.
+
+## WebServer ==============================================================================================
+
+  InstanceType:
+    Description: WebServer EC2 instance type (has default, AllowedValues)
+    Type: String
+    Default: t2.micro
+    AllowedValues:
+      - t2.micro
+      - t2.small
+      - t2.medium
+      - t2.large
+      - t2.xlarge
+    ConstraintDescription: must be a valid EC2 instance type.
+
+  WebImageId:
+    Type: AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>
+    Default: /aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-gp2
+
+  S3BucketName:
+    Description: Name of an S3 bucket to download files from
+    Type: String
+
+  IndexPrefix:
+    Description: Prefix of HTML file uploaded to S3
+    Type: String
+    ConstraintDescription: must be a name of an existing file in s3 bucket.
+  
+## Resources ===================================================================================================
+# Bastion ==============================================================================================
+
+Resources:
+  BastionSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Enable HTTP access via port 80 and SSH access via port 22
+      GroupName: "BastionSecurityGroup"
+      VpcId: !ImportValue VPC 
+      SecurityGroupIngress:
+      - IpProtocol: tcp
+        FromPort: 22
+        ToPort: 22
+        CidrIp: !Ref SSHLocation
+
+  BastionHost:
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId: !Ref BastionImageId
+      KeyName: !Ref KeyName
+      InstanceType: !Ref BastionInstanceType
+      SubnetId: !ImportValue PublicSubnet1
+      SecurityGroupIds: 
+        - !Ref BastionSecurityGroup
+      Tags:
+        - Key : "Name"
+          Value: "Bastion"
+
+  BastionEIP:
+    Type: AWS::EC2::EIP
+    Properties:
+      InstanceId: !Ref BastionHost
+
+## Web Servers ===========================================================================
+
+  WebServerSecurityGroupPub:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Enable HTTP access via port 80 and SSH access via port 2
+      VpcId: !ImportValue VPC
+      SecurityGroupIngress:
+      - IpProtocol: tcp
+        FromPort: 80
+        ToPort: 80
+        CidrIp: 0.0.0.0/0
+      - IpProtocol: tcp
+        FromPort: 22
+        ToPort: 22
+        CidrIp: !ImportValue VpcCIDR
+
+  WebServerSecurityGroupPriv:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Enable HTTP access via port 80 and SSH access via port 2
+      VpcId: !ImportValue VPC
+      SecurityGroupIngress:
+      - IpProtocol: tcp
+        FromPort: 80
+        ToPort: 80
+        CidrIp: !ImportValue  VpcCIDR
+      - IpProtocol: tcp
+        FromPort: 22
+        ToPort: 22
+        CidrIp: !ImportValue  VpcCIDR
+
+  WebServerHostPub1:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Sub  https://${S3BucketName}.s3.amazonaws.com/1.0-apache-ec2.yml
+      Parameters:
+        ImageId: !Sub ${WebImageId}
+        KeyName: !Ref KeyName
+        InstanceType: !Ref InstanceType
+        SubnetId: !ImportValue PublicSubnet1
+        S3BucketName: !Ref S3BucketName
+        IndexPrefix: !Ref IndexPrefix
+        InstanceName: WebServerHostPub1
+        SecurityGroupIds: !Ref WebServerSecurityGroupPub
+      TimeoutInMinutes: 30
+
+  WebServerHostPub2:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Sub https://${S3BucketName}.s3.amazonaws.com/1.0-apache-ec2.yml
+      Parameters:
+        ImageId: !Sub  ${WebImageId}
+        KeyName: !Ref KeyName
+        InstanceType: !Ref InstanceType
+        SubnetId: !ImportValue PublicSubnet2
+        S3BucketName: !Ref S3BucketName
+        IndexPrefix: !Ref IndexPrefix
+        InstanceName: WebServerHostPub2
+        SecurityGroupIds: !Ref WebServerSecurityGroupPub
+      TimeoutInMinutes: 30
+  
+  WebServerHostPriv1:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Sub https://${S3BucketName}.s3.amazonaws.com/1.0-apache-ec2.yml
+      Parameters:
+        ImageId: !Sub ${WebImageId}
+        KeyName: !Ref KeyName
+        InstanceType: !Ref InstanceType
+        SubnetId: !ImportValue PrivateSubnet2
+        S3BucketName: !Ref S3BucketName
+        IndexPrefix: !Ref IndexPrefix
+        InstanceName:  WebServerHostPiv1
+        SecurityGroupIds: !Ref WebServerSecurityGroupPriv
+      TimeoutInMinutes: 30
+
+  WebServerHostPriv2:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Sub https://${S3BucketName}.s3.amazonaws.com/1.0-apache-ec2.yml
+      Parameters:
+        ImageId: !Sub ${WebImageId}
+        KeyName: !Ref KeyName
+        InstanceType: !Ref InstanceType
+        SubnetId: !ImportValue PrivateSubnet2
+        S3BucketName: !Ref S3BucketName
+        IndexPrefix: !Ref IndexPrefix
+        InstanceName: WebServerHostPiv2
+        SecurityGroupIds: !Ref WebServerSecurityGroupPriv
+      TimeoutInMinutes: 30
+    
+Outputs:
+   
+  BastionPublicIP:
+    Description: Public IP address of the Bastion server
+    Value:
+      !GetAtt BastionHost.PublicIp
+
+
+
